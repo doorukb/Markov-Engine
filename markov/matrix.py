@@ -12,6 +12,7 @@ class Markov_Matrix:
         self.vocab_size = 0
         self._matrix: np.ndarray | None = None
         self._counts: dict[State, dict[int, int]] = {}
+        self._backoff_counts: dict[int, dict[State, dict[int, int]]] = {}
         self._rows: dict[State, np.ndarray] = {}
         self._observed_states: list[State] = []
     
@@ -32,6 +33,13 @@ class Markov_Matrix:
             self._matrix = None
             self._counts = self._fit_order_n(indices)
             self._observed_states = []
+
+        # Backoff tables: counts for every context length 1..order, so an
+        # unseen full-order state can fall back to shorter contexts instead
+        # of a uniform-random row (see get_row_backoff).
+        self._backoff_counts = {
+            k: self._fit_counts_for_order(indices, k) for k in range(1, self.order + 1)
+        }
 
     @property
     def observed_states(self) -> list[State]:
@@ -84,15 +92,45 @@ class Markov_Matrix:
         return matrix, observed
 
     def _fit_order_n(self, indices: list[int]) -> dict[State, dict[int, int]]:
+        return self._fit_counts_for_order(indices, self.order)
+
+    @staticmethod
+    def _fit_counts_for_order(indices: list[int], order: int) -> dict[State, dict[int, int]]:
         counts: dict[State, dict[int, int]] = {}
-        for i in range(len(indices) - self.order):
-            state = tuple(indices[i : i + self.order])
-            nxt = indices[i + self.order]
+        for i in range(len(indices) - order):
+            state = tuple(indices[i : i + order])
+            nxt = indices[i + order]
             if state not in counts:
                 counts[state] = {}
             bucket = counts[state]
             bucket[nxt] = bucket.get(nxt, 0) + 1
         return counts
+
+    def get_row_backoff(self, state: State) -> np.ndarray:
+        """Probability row for `state`, backing off to shorter contexts.
+
+        The plain get_row() returns a uniform row for an unseen state. During
+        generation that is catastrophic: sampling one uniform-random token
+        makes the *next* state unseen too, so a single dead end (such as the
+        final n-gram of the corpus, which has no successor) permanently
+        degrades the rest of the output into noise. Instead, drop the oldest
+        token from the context until a known state is found ("stupid
+        backoff"); uniform randomness remains only as the very last resort.
+        """
+        if self.vocab_size < 1:
+            raise ValueError("matrix is not fitted. Call fit() first.")
+        if len(state) != self.order:
+            raise ValueError(f"state length must be {self.order}, got {len(state)}")
+
+        if self.order == 1:
+            return self.get_row(state)
+
+        for k in range(self.order, 0, -1):
+            sub_state = tuple(state[-k:])
+            inner = self._backoff_counts.get(k, {}).get(sub_state)
+            if inner:
+                return self._normalize_counts(inner)
+        return self._uniform_row()
 
     def _normalize_counts(self, inner: dict[int, int]) -> np.ndarray:
         row = np.zeros(self.vocab_size, dtype=np.float64)
