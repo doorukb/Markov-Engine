@@ -1,5 +1,7 @@
 # Markov Engine
 
+[![CI](https://github.com/doorukb/Markov-Engine/actions/workflows/ci.yml/badge.svg)](https://github.com/doorukb/Markov-Engine/actions/workflows/ci.yml)
+
 - Python 3.10+
 - NumPy
 - Matplotlib
@@ -14,7 +16,7 @@ The motivating question is not "can this generate useful text" but "what does st
 
 ## How it works
 
-The input text is tokenized into a flat sequence of indices. For order-1 models, a square stochastic transition matrix is built directly as a NumPy array where entry `T[i, j]` is the probability of token `j` following token `i`. For order-n models, the state space becomes n-gram tuples and the transition structure is stored as a sparse dict of normalized probability vectors. Generation works by sampling from the appropriate row at each step using `numpy.random.choice` with probability weights.
+The input text is tokenized into a flat sequence of indices. For order-1 models, a square stochastic transition matrix is built directly as a NumPy array where entry `T[i, j]` is the probability of token `j` following token `i`. For order-n models, the state space becomes n-gram tuples and the transition structure is stored as a sparse dict of normalized probability vectors. Generation works by sampling from the appropriate row at each step using `numpy.random.choice` with probability weights. When a higher-order chain reaches a state it never observed (a dead end such as the final n-gram of the corpus), it backs off to progressively shorter contexts ("stupid backoff") rather than emitting uniform-random noise, so one dead end can no longer derail the rest of the output.
 
 The matrix representation is not the most memory-efficient approach for large vocabularies, and it is not meant to be. The point is that the matrix is a real mathematical object you can operate on directly, unlike a Python dictionary.
 
@@ -31,16 +33,16 @@ The vocabulary size directly determines matrix dimensions. For order-1, the matr
 
 ## Usage
 
-You can either drag your TXT file into the root directory or copy the path of your TXT file, both works- just make sure to insert the right address. Replace "address_of_input_TXT"
+Point the engine at any plain-text file; a small sample corpus ships in `examples/sample_input.txt`.
 
 ```bash
 # You want an output of order 1 with maximum size of 150 tokens, and save figures to outputs/ instead of displaying
-python main.py address_of_input_TXT --order 1 --max-tokens 150 --save-figures
+python main.py examples/sample_input.txt --order 1 --max-tokens 150 --save-figures
 ```
 
 ```bash
 # You want an output of order 2 with maximum size of 150 tokens, and display the result in terminal & save as TXT
-python main.py address_of_input_TXT --order 2 --max-tokens 150
+python main.py examples/sample_input.txt --order 2 --max-tokens 150
 ```
 
 <br>
