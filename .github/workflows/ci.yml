@@ -1,0 +1,22 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements.txt
+      - name: Tests
+        run: python -m pytest tests/ -q
+      - name: Smoke-run both generation modes
+        run: |
+          python main.py examples/sample_input.txt --order 1 --max-tokens 60 --save-figures
+          python main.py examples/sample_input.txt --order 3 --max-tokens 60 --save-figures
+          test -f outputs/output_text.txt && test -f outputs/matrix.png
