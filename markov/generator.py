@@ -14,7 +14,7 @@ def generate(matrix: Markov_Matrix, tokenizer: Tokenizer, *, seed: str | None = 
     output: list[int] = list(state)
 
     while len(output) < max_tokens:
-        row = matrix.get_row(state)
+        row = matrix.get_row_backoff(state)
         next_idx = int(np.random.choice(matrix.vocab_size, p=row))
         output.append(next_idx)
         state = tuple(state[1:] + (next_idx,))
