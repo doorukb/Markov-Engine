@@ -1,12 +1,3 @@
-markov/__pycache__/
-source/__pycache__/
-visualization/__pycache__/
-tests/
 __pycache__/
 .pytest_cache/
-outputs/convergence.png
-outputs/entropy.png
-outputs/matrix.png
-outputs/output_text.txt
-outputs/stationary.png
-biblical_text_input.txt
+outputs/
